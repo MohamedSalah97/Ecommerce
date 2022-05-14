@@ -1,6 +1,6 @@
 const db = require('../util/database');
 
-const checkSeller = (req,res,next)=>{
+const checkSeller =async  (req,res,next)=>{
   const sellerId = req.currentUser.id;
 
   const [rows,field] = await db.execute('SELECT * FROM seller WHERE id = ?', [sellerId]);

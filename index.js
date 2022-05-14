@@ -27,6 +27,7 @@ const fileFilter = (req,file,cb)=>{
 }
 
 app.use(cors());
+app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
 app.use(cookieSession({
   signed: false,
@@ -36,7 +37,7 @@ app.use(cookieSession({
 app.use(multer({storage: fileStorage, fileFilter}).single('image'));
 
 app.use(auth); 
-app.use(currentUser());
+app.use(currentUser);
 app.use(product);
 
 app.listen(4444,()=>{
