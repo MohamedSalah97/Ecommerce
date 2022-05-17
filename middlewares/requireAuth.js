@@ -2,7 +2,7 @@ const express = require('express');
 
 const requireAuth = (req,res,next)=>{
   if(!req.currentUser){
-    return res.status(401).send({msg:'Not Authorized'})
+    return res.status(401).send({errors: [{msg: 'Not Authenticated'}]})
   }
 
   next();

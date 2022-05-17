@@ -15,13 +15,15 @@ router.post('/api/seller/signup',[
 ],validateRequest,async (req,res)=>{
 
   const {email,password,name} = req.body;
-  const [rows,fields] = await db.execute('SELECT * FROM seller WHERE email = ?',[email]);
+  const [foundRows, foundFields] = await db.execute('SELECT * FROM seller WHERE email = ?',[email]);
   if(rows){
-    return res.status(401).send({msg: 'email is in use try another one'})
+    return res.status(400).send({errors: [{msg: 'Email is in use try another one'}]})
   }
   const hashedPassword = await bcrypt.hash(password,10);
 
-  const user = await db.execute('INSERT INTO seller (name,email,password) VALUES (?,?,?)',[name,email,hashedPassword]);
+  await db.execute('INSERT INTO seller (name,email,password) VALUES (?,?,?)',[name,email,hashedPassword]);
+  const [rows,fields] = await db.execute('SELECT * FROM seller WHERE email= ?', [email]);
+  const user = rows[0]
 
   const jwtToken = jwt.sign({
     email: user.email,
@@ -46,14 +48,14 @@ router.post('/api/seller/signin',[
   const [rows,fields] = await db.execute('SELECT * FROM seller WHERE email= ?', [email]);
   const user = rows[0]
   if(!user){
-    return res.status(401).send({msg: 'Email is not found'})
+    return res.status(400).send({errors: [{msg: 'Email is not found'}]});
   }
 
   const hashedPassword = user.password ;
   const match = await bcrypt.compare(password,hashedPassword);
    
   if(!match){
-    return res.status(401).send({msg: 'Incorrect password'});
+    return res.status(400).send({errors: [{msg: 'Incorrect Password'}]});
   }
 
   const jwtToken = jwt.sign({
@@ -71,19 +73,24 @@ router.post('/api/seller/signin',[
 })
 
 //signup a user
-router.post('/api/seller/signup',[
+router.post('/api/user/signup',[
   body('email').isEmail().withMessage('Email must be valid'),
-  body('password').trim().isLength({min:6,max:20}).withMessage('Password must be between 6 and 20 characters')
+  body('password').trim().isLength({min:6,max:20}).withMessage('Password must be between 6 and 20 characters'),
+  body('name').not().isEmpty().withMessage('Name is required'),
+  body('address').not().isEmpty().withMessage('Address is required')
 ],validateRequest,async (req,res)=>{
 
   const {email,password,name,address} = req.body;
-  const [rows,fields] = await db.execute('SELECT * FROM user WHERE email = ?',[email]);
-  if(rows){
-    return res.status(401).send({msg: 'email is in use try another one'})
+  const [foundRows,foundFields] = await db.execute('SELECT * FROM user WHERE email = ?',[email]);
+  const foundUser =foundRows[0];
+  if(foundUser){
+    return res.status(400).send({errors: [{msg: 'Email is in use try another one'}]})
   }
   const hashedPassword = await bcrypt.hash(password,10);
 
-  const user = await db.execute('INSERT INTO seller (name,email,password,address) VALUES (?,?,?)',[name,email,hashedPassword,address]);
+  await db.execute('INSERT INTO user (email,password,name,address) VALUES (?,?,?,?)',[email,hashedPassword,name,address]);
+  const [rows,fields] = await db.execute('SELECT * FROM user WHERE email= ?', [email]);
+  const user = rows[0]
 
   const jwtToken = jwt.sign({
     email: user.email,
@@ -107,14 +114,77 @@ router.post('/api/user/signin',[
   const [rows,fields] = await db.execute('SELECT * FROM user WHERE email= ?', [email]);
   const user = rows[0];
   if(!user){
-    return res.status(401).send({msg: 'Email is not found'})
+    return res.status(400).send({errors: [{msg: 'Email is not found'}]})
   }
 
   const hashedPassword = user.password ;
   const match = await bcrypt.compare(password,hashedPassword);
    
   if(!match){
-    return res.status(401).send({msg: 'Incorrect password'});
+    return res.status(401).send({errors: [{msg: 'Incorrect password'}]});
+  }
+
+  const jwtToken = jwt.sign({
+    email: user.email,
+    id: user.id
+  },process.env.JWT_SECRET);
+
+  req.session = {
+    jwt: jwtToken
+  };
+
+  res.status(201).json({success: true});
+
+
+});
+
+//signup an admin
+router.post('/api/admin/signup',[
+  body('email').isEmail().withMessage('Email must be valid'),
+  body('password').trim().isLength({min:6,max:20}).withMessage('Password must be between 6 and 20 characters')
+],validateRequest,async (req,res)=>{
+
+  const {email,password,name} = req.body;
+  const [foundRows, foundFields] = await db.execute('SELECT * FROM admins WHERE email = ?',[email]);
+  if(rows){
+    return res.status(401).send({errors: [{msg: 'Email is in use try another one'}]})
+  }
+  const hashedPassword = await bcrypt.hash(password,10);
+
+  await db.execute('INSERT INTO admins (name,email,password) VALUES (?,?,?)',[name,email,hashedPassword]);
+  const [rows,fields] = await db.execute('SELECT * FROM admins WHERE email= ?', [email]);
+  const user = rows[0]
+
+  const jwtToken = jwt.sign({
+    email: user.email,
+    id: user.id
+  },process.env.JWT_SECRET);
+
+  req.session = {
+    jwt: jwtToken
+  };
+
+  res.status(201).json({success: true});
+});
+
+//login an admin
+router.post('/api/admin/signin',[
+  body('email').isEmail().withMessage('Email must be valid'),
+  body('password').trim().isLength({min:6,max:20}).withMessage('Password must be between 6 and 20 characters')
+],validateRequest,async (req,res)=>{
+
+  const {email,password} = req.body ;
+  const [rows,fields] = await db.execute('SELECT * FROM admins WHERE email= ?', [email]);
+  const user = rows[0];
+  if(!user){
+    return res.status(401).send({errors: [{msg: 'Emai is not found'}]})
+  }
+
+  const hashedPassword = user.password ;
+  const match = await bcrypt.compare(password,hashedPassword);
+   
+  if(!match){
+    return res.status(401).send({errors: [{msg: 'Incorrect Password'}]});
   }
 
   const jwtToken = jwt.sign({
@@ -132,7 +202,7 @@ router.post('/api/user/signin',[
 });
 
 //signout
-router.post('/api/users/signout', (req,res) =>{
+router.post('/api/signout', (req,res) =>{
   req.session = null ;
 
   res.send({})

@@ -2,8 +2,10 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cookieSession = require('cookie-session');
 const multer = require('multer');
+const path = require('path');
 const auth = require('./routes/auth');
 const product = require('./routes/product');
+const orders = require('./routes/orders');
 const currentUser = require('./middlewares/currentUser');
 const cors = require('cors')
 
@@ -27,7 +29,7 @@ const fileFilter = (req,file,cb)=>{
 }
 
 app.use(cors());
-app.use(bodyParser.urlencoded({extended: false}));
+// app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
 app.use(cookieSession({
   signed: false,
@@ -35,10 +37,12 @@ app.use(cookieSession({
 }));
 
 app.use(multer({storage: fileStorage, fileFilter}).single('image'));
+app.use('images', express.static(path.join(__dirname,'images')));
 
 app.use(auth); 
 app.use(currentUser);
-app.use(product);
+app.use('/api/products',product);
+app.use('/api/orders',orders)
 
 app.listen(4444,()=>{
   console.log('Ecommerce sql version is running on 4444')
